@@ -25,12 +25,12 @@ classdef experiment < handle
         intTrialMin = 1   % Inter trial duration [s] 
         intTrialMax = 1   % Inter trial duration [s] 
         
-        defaultPath = 'D:\Science\Data\Pro_CRP\chronicEMG'
+        defaultPath = 'C:\Users\lsilsc\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
         defaultName = [date, '_RUN_', num2str(1),'.mat']
         
         squareHeight = 300;      % size of squares in pixels
         
-        expType = 'EMG'; % type of experiment to be executed, options are: 'EMG', 'Dyno', 'EMG+Dyno', 'Implant'
+        expType = 'Dyno'; % type of experiment to be executed, options are: 'EMG', 'Dyno', 'EMG+Dyno', 'Implant'
     end
     %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -53,8 +53,9 @@ classdef experiment < handle
         sequence       % Sequence for the trials
         audio
         dynamometer
+        t
 
-        resourcePath = 'C:\Users\Kai\Matlab\MonkeySetup\src\resources';
+        resourcePath = 'C:\Users\lsilsc\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
     end
     
     methods
@@ -80,6 +81,9 @@ classdef experiment < handle
             [w, p] = obj.createOnScreen;
             q = obj.createSequence;
             a = obj.createAudio;
+            
+            obj.t = tcpip('127.0.0.1', 45454, 'NetworkRole', 'client');
+            fopen(obj.t);
  
             k = 1; % counter
             results = 0;
@@ -157,6 +161,7 @@ classdef experiment < handle
                 end
                 
                 obj.playSound('start');
+                obj.session.outputSingleScan(3.3);
 
                 % response time
                 switch obj.expType
@@ -245,6 +250,8 @@ classdef experiment < handle
                         for i = 1:q.frames.response
                             
                             data(k, i) = obj.dynamometer.scale(s.inputSingleScan);
+                            disp(data(k, i));
+                            fwrite(obj.t, data(k, i), 'double');
                             
                             scaleData(i) = (1 - ((data(k, i) / obj.maxForceValue) * obj.sensorSensitivity)) * p.screenYpixels;
                             
@@ -297,7 +304,7 @@ classdef experiment < handle
                     case 'Implant'
                         
                 end
-                
+                obj.session.outputSingleScan(0);
                 if trialSucc(k)
                     task = 'success';
                 else
@@ -350,7 +357,6 @@ classdef experiment < handle
                 end
 
                 k = k + 1;
-                
             end
                         
             obj.playSound('stop');
@@ -575,9 +581,9 @@ classdef experiment < handle
         
         function s = createDAQSession(obj)
             endTime = 0.002;
-            fs = 1000;
+            fs = 1250;
 
-            s = sdaq.createSession;
+            s = sdaq.createSession();
             s.Rate = fs;
             s.DurationInSeconds = endTime;
             
@@ -586,7 +592,8 @@ classdef experiment < handle
             
             dyno.lh = addlistener(s,'DataAvailable', @(src,event)appendADC(channel, event.TimeStamps, event.Data));
             s.NotifyWhenDataAvailableExceeds = 1;
-            
+            sdaq.addAnalogOutput(s);
+            s.outputSingleScan(0);
             obj.dynamometer = dyno;
             obj.session = s;
         end
@@ -761,11 +768,10 @@ classdef experiment < handle
         
         %% Helper
         function cleanUp(obj)
+            fclose(obj.t);
             Priority(0);
             sca;
-%             obj.playSound('stop')
-            delete(obj.session)
-            
+            obj.playSound('stop')
             try
                 PsychPortAudio('Close', obj.audio.pouthandle);
                 disp('*** Closed Audio Port ***')
@@ -774,6 +780,7 @@ classdef experiment < handle
             end
             
             disp('*** Experiment terminated ***');
+            delete(obj.session)
         end
     end
 end
