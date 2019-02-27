@@ -25,7 +25,7 @@ classdef experiment < handle
         intTrialMin = 1   % Inter trial duration [s] 
         intTrialMax = 1   % Inter trial duration [s] 
         
-        defaultPath = 'C:\Users\lsilsc\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
+        defaultPath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
         defaultName = [date, '_RUN_', num2str(1),'.mat']
         
         squareHeight = 300;      % size of squares in pixels
@@ -55,7 +55,7 @@ classdef experiment < handle
         dynamometer
         t
 
-        resourcePath = 'C:\Users\lsilsc\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
+        resourcePath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
     end
     
     methods
@@ -301,6 +301,8 @@ classdef experiment < handle
                             end
                         end
                         
+                        fwrite(obj.t, 0, 'double');  % send a zero to indicate the end of the respond duration
+                        
                     case 'Implant'
                         
                 end
@@ -455,7 +457,7 @@ classdef experiment < handle
             screenNumber = max(screens);
             white = WhiteIndex(screenNumber);
             p.grey = white / 2;
-            
+             
             % Open an on screen window and prepare rectangles for stim and
             % feedback
             w = PsychImaging('OpenWindow', screenNumber, p.grey);

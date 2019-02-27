@@ -32,6 +32,7 @@ while(1)
 %     pause(1);
 %     s.outputSingleScan(0);
 %     pause(1);
+    dynamometer.scale(s.inputSingleScan)
    fwrite(t, dynamometer.scale(s.inputSingleScan), 'double');
 end
 
