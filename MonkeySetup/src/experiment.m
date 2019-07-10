@@ -53,7 +53,7 @@ classdef experiment < handle
         sequence       % Sequence for the trials
         audio
         dynamometer
-        t
+        t              % Socket to Sylph GUI
 
         resourcePath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
     end
@@ -83,7 +83,11 @@ classdef experiment < handle
             a = obj.createAudio;
             
             obj.t = tcpip('127.0.0.1', 45454, 'NetworkRole', 'client');
-            fopen(obj.t);
+            try
+                fopen(obj.t);
+            catch
+                disp('Unable to connect to GUI...');
+            end
  
             k = 1; % counter
             results = 0;
@@ -251,7 +255,9 @@ classdef experiment < handle
                             
                             data(k, i) = obj.dynamometer.scale(s.inputSingleScan);
                             disp(data(k, i));
-                            fwrite(obj.t, data(k, i), 'double');
+                            if strcmp(obj.t.Status, 'open')
+                                fwrite(obj.t, data(k, i), 'double');
+                            end
                             
                             scaleData(i) = (1 - ((data(k, i) / obj.maxForceValue) * obj.sensorSensitivity)) * p.screenYpixels;
                             
@@ -301,7 +307,9 @@ classdef experiment < handle
                             end
                         end
                         
-                        fwrite(obj.t, 0, 'double');  % send a zero to indicate the end of the respond duration
+                        if strcmp(obj.t.Status, 'open')
+                            fwrite(obj.t, 0, 'double');  % send a zero to indicate the end of the respond duration
+                        end
                         
                     case 'Implant'
                         
@@ -770,7 +778,9 @@ classdef experiment < handle
         
         %% Helper
         function cleanUp(obj)
-            fclose(obj.t);
+            if strcmp(obj.t.Status, 'open')
+                fclose(obj.t);
+            end
             Priority(0);
             sca;
             obj.playSound('stop')
