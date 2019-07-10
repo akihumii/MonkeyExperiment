@@ -136,16 +136,27 @@ evalin('caller','global AGL GL GLU');
 oglconstpath = [PsychtoolboxRoot 'PsychOpenGL/MOGL/core/oglconst.mat'];
 
 % C-Style compatible load requested?
-if opengl_c_style > 0
-   % Load all constants, also the C-Style ones, e.g., GL_LIGHTING
-   evalin('caller',['load (''' oglconstpath ''');']);
-else
-   % Load only the GL. GLU. and AGL. versions, e.g., GL.LIGHTING
-   % This is less convenient as one needs to replace GL_ by GL. in
-   % all scripts, but it doesn't clutter the Matlab workspace...
-   evalin('caller',['load (''' oglconstpath ''', ''AGL'', ''GL'', ''GLU'');']);
-end;
-
+try
+    if opengl_c_style > 0
+        % Load all constants, also the C-Style ones, e.g., GL_LIGHTING
+        evalin('caller',['load (''' oglconstpath ''');']);
+    else
+        % Load only the GL. GLU. and AGL. versions, e.g., GL.LIGHTING
+        % This is less convenient as one needs to replace GL_ by GL. in
+        % all scripts, but it doesn't clutter the Matlab workspace...
+        evalin('caller',['load (''' oglconstpath ''', ''AGL'', ''GL'', ''GLU'');']);
+    end;
+catch
+    if opengl_c_style > 0
+        % Load all constants, also the C-Style ones, e.g., GL_LIGHTING
+        evalin('caller','load (''oglconst.mat'');');
+    else
+        % Load only the GL. GLU. and AGL. versions, e.g., GL.LIGHTING
+        % This is less convenient as one needs to replace GL_ by GL. in
+        % all scripts, but it doesn't clutter the Matlab workspace...
+        evalin('caller','load (''oglconst.mat'', ''AGL'', ''GL'', ''GLU'');');
+    end;
+end
 % Assign GL_3D manually - Little hack...
 GL.GL_3D = 1537;
 GL.GL_2D = 1536;
@@ -158,12 +169,16 @@ if IsWin
    % Windows system: Change working dir to location of our glut32.dll
    olddir = pwd;
    
+   try
    if IsWin(1)
        % Need 64-Bit freeglut.dll:
        cd([PsychtoolboxRoot 'PsychOpenGL/MOGL/core/x64']);
    else
        % Need 32-Bit freeglut.dll:
        cd([PsychtoolboxRoot 'PsychOpenGL/MOGL/core']);
+   end
+   catch
+       disp('not changing directory to PsychOpenGL/MOGL/core/x64...');
    end
    
    % Preload (and thereby link against freeglut.dll) moglcore into Matlab. The
