@@ -54,6 +54,7 @@ classdef experiment < handle
         audio
         dynamometer
         t              % Socket to Sylph GUI
+        tRpi           % Socket to Rpi
 
         resourcePath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
     end
@@ -88,6 +89,13 @@ classdef experiment < handle
             catch
                 disp('Unable to connect to GUI...');
             end
+            
+            obj.tRpi = tcpip('192.168.4.3', 5555, 'NetworkRole', 'client');
+            try
+                fopen(obj.tRpi);
+            catch
+                disp('Unable to connect to Rpi...');
+            end
  
             k = 1; % counter
             results = 0;
@@ -113,6 +121,8 @@ classdef experiment < handle
                     task = 'interval';
                     stop = obj.displayInterval(w, p, task);
                     
+                    obj.sendZeroToSocket;
+                    
                     if ~stop
                         vbl = Screen('Flip', w, vbl + (p.waitframes - 0.5) * p.ifi);
                     else
@@ -132,6 +142,8 @@ classdef experiment < handle
                 for i = 1:q.frames.presentation
                     stop = obj.displayStimulus(w, p, target, 0);
                     
+                    obj.sendZeroToSocket;
+                    
                     if ~stop
                         vbl = Screen('Flip', w, vbl + (p.waitframes - 0.5) * p.ifi);
                     else
@@ -142,6 +154,8 @@ classdef experiment < handle
                     tempData(k, i) = 1;
                     
                     while tempData(k, i) > 0.1
+                        obj.sendZeroToSocket;
+                        
                         % only continue when no force is applied
                         if strcmp(obj.expType, 'Dyno')
                             tempData(k, i) = obj.dynamometer.scale(s.inputSingleScan);
@@ -258,6 +272,9 @@ classdef experiment < handle
                             if strcmp(obj.t.Status, 'open')
                                 fwrite(obj.t, data(k, i), 'double');
                             end
+                            if strcmp(obj.tRpi.Status, 'open')
+                                fwrite(obj.tRpi, data(k, i), 'single');
+                            end
                             
                             scaleData(i) = (1 - ((data(k, i) / obj.maxForceValue) * obj.sensorSensitivity)) * p.screenYpixels;
                             
@@ -297,19 +314,19 @@ classdef experiment < handle
                             if ~stop
                                 vbl = Screen('Flip', w, vbl + (p.waitframes - 0.5) * p.ifi);
                             else
+                                obj.sendZeroToSocket;
                                 return
                             end
                             
                             % Determine succesful trial
                             if (sum(succ(k, :)) ~= 0) && (~mod(sum(succ(k, :)), obj.sequence.frames.success))
                                 trialSucc(k) = 1;
+                                obj.sendZeroToSocket;
                                 break
                             end
                         end
                         
-                        if strcmp(obj.t.Status, 'open')
-                            fwrite(obj.t, 0, 'double');  % send a zero to indicate the end of the respond duration
-                        end
+                        obj.sendZeroToSocket;
                         
                     case 'Implant'
                         
@@ -324,6 +341,7 @@ classdef experiment < handle
                 % reward time
                 for i = 1:q.frames.reward
                     stop = obj.displayInterval(w, p, task);
+                    obj.sendZeroToSocket;
                     
                     if ~stop
                         vbl = Screen('Flip', w, vbl + (p.waitframes - 0.5) * p.ifi);
@@ -347,13 +365,6 @@ classdef experiment < handle
                     Screen('Flip', w, vbl + (p.waitframes - 0.5) * p.ifi);
                     obj.stopExperiment(1)
                     
-                    if strcmp(obj.expType, 'EMG') || strcmp(obj.expType, 'EMG+Dyno')
-                        obj.results.data = audioOri;
-                        obj.results.dataProcessed = audioProcessed(1:k, :);
-                    else
-                        obj.results.data = data(1:k, :);
-                    end
-                    
                     obj.results.succFrames = succ(1:k, :);
                     obj.results.succTrials = trialSucc(1:k);
                     obj.results.frameRate = p.frameRate;
@@ -361,7 +372,7 @@ classdef experiment < handle
                     results = obj.results;
                     
                     obj.playSound('stop');
-                    
+                                        
                     obj.cleanUp
                     return
                 end
@@ -776,10 +787,23 @@ classdef experiment < handle
             obj.audio = aux;
         end
         
+        function sendZeroToSocket(obj)
+            if strcmp(obj.t.Status, 'open')
+                fwrite(obj.t, 0, 'double');  % send a zero to indicate the end of the respond duration
+            end
+            if strcmp(obj.tRpi.Status, 'open')
+                fwrite(obj.tRpi, 0, 'single');
+            end
+        end
+        
         %% Helper
         function cleanUp(obj)
             if strcmp(obj.t.Status, 'open')
                 fclose(obj.t);
+            end
+            if strcmp(obj.tRpi.Status, 'open')
+                fwrite(obj.tRpi, 99999, 'single');
+                fclose(obj.tRpi);
             end
             Priority(0);
             sca;

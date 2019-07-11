@@ -1,3 +1,6 @@
+0. download NI-DAQmx:
+http://www.ni.com/en-sg/support/downloads/drivers/download.ni-daqmx.html#311818
+
 1. add:
 C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\Psychtoolbox\Psychtoolbox\PsychOpenGL\MOGL\wrap\glmGetConst.m
 
