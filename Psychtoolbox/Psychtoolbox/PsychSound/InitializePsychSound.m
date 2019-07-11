@@ -93,7 +93,8 @@ if IsWin
     % Standard path trick: Change working directory to driver load path,
     % preinit PsychPortAudio so it gets linked against the proper DLL, change
     % path back to old current directory:
-    try
+    disp(['driverloadpath is at here!!!!! : ', driverloadpath])
+%     try
         olddir = pwd;
         cd(driverloadpath);
         % We force loading+linking+init of the driver and at the same time
@@ -121,10 +122,10 @@ if IsWin
             fprintf('PTB-Warning: system for properly installed and configured drivers and retry.\n');
             fprintf('PTB-Warning: Read "help InitializePsychSound" for more info about ASIO et al.\n');
         end
-    catch %#ok<*CTCH>
-        cd(olddir);
-        error('Failed to load PsychPortAudio driver for unknown reason! Dependency problem?!?');
-    end
+%     catch %#ok<*CTCH>
+%         cd(olddir);
+%         error('Failed to load PsychPortAudio driver for unknown reason! Dependency problem?!?');
+%     end
 end
 
 % Maybe some tricks (in the future) for OS/X? None yet.
