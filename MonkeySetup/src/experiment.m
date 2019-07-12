@@ -26,6 +26,7 @@ classdef experiment < handle
         intTrialMax = 1   % Inter trial duration [s] 
         
         defaultPath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
+%         defaultPath = 'C:\Users\Sinapse\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
         defaultName = [date, '_RUN_', num2str(1),'.mat']
         
         squareHeight = 300;      % size of squares in pixels
@@ -57,6 +58,7 @@ classdef experiment < handle
         tRpi           % Socket to Rpi
 
         resourcePath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
+%         resourcePath = 'C:\Users\Sinapse\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
     end
     
     methods

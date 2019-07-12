@@ -1,84 +1,29 @@
-0. download NI-DAQmx:
+To run the program:
+1. download NI-DAQmx:
 http://www.ni.com/en-sg/support/downloads/drivers/download.ni-daqmx.html#311818
 
+2. edit matlab script: 
+C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\experiment.m
+line 28: defaultPath: change to the directory leads to [MonkeyExperiment\MonkeySetup\src]
+line 60: resourcePath: change to directory leads to [MonkeyExperiment\MonkeySetup\src\resources]
+
+
+To compile:
 1. add:
 C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\Psychtoolbox\Psychtoolbox\PsychOpenGL\MOGL\wrap\glmGetConst.m
-
 C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\Psychtoolbox\Psychtoolbox\PsychOpenGL\MOGL\core\oglconst.mat
 
-2. edit some files:
-
-in C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\Psychtoolbox\Psychtoolbox\PsychOpenGL\MOGL\core\InitializeMatlabOpenGL.m:
-change:
-if opengl_c_style > 0
-   % Load all constants, also the C-Style ones, e.g., GL_LIGHTING
-   evalin('caller',['load (''' oglconstpath ''');']);
-else
-   % Load only the GL. GLU. and AGL. versions, e.g., GL.LIGHTING
-   % This is less convenient as one needs to replace GL_ by GL. in
-   % all scripts, but it doesn't clutter the Matlab workspace...
-   evalin('caller',['load (''' oglconstpath ''', ''AGL'', ''GL'', ''GLU'');']);
-end;
-
-to:
-try
-    if opengl_c_style > 0
-        % Load all constants, also the C-Style ones, e.g., GL_LIGHTING
-        evalin('caller',['load (''' oglconstpath ''');']);
-    else
-        % Load only the GL. GLU. and AGL. versions, e.g., GL.LIGHTING
-        % This is less convenient as one needs to replace GL_ by GL. in
-        % all scripts, but it doesn't clutter the Matlab workspace...
-        evalin('caller',['load (''' oglconstpath ''', ''AGL'', ''GL'', ''GLU'');']);
-    end;
-catch
-    if opengl_c_style > 0
-        % Load all constants, also the C-Style ones, e.g., GL_LIGHTING
-        evalin('caller','load (''oglconst.mat'');');
-    else
-        % Load only the GL. GLU. and AGL. versions, e.g., GL.LIGHTING
-        % This is less convenient as one needs to replace GL_ by GL. in
-        % all scripts, but it doesn't clutter the Matlab workspace...
-        evalin('caller','load (''oglconst.mat'', ''AGL'', ''GL'', ''GLU'');');
-    end;
-end
-
-
-change:
-   if IsWin(1)
-       % Need 64-Bit freeglut.dll:
-       cd([PsychtoolboxRoot 'PsychOpenGL/MOGL/core/x64']);
-@ -165,6 +177,9 @@ if IsWin
-       % Need 32-Bit freeglut.dll:
-       cd([PsychtoolboxRoot 'PsychOpenGL/MOGL/core']);
-   end
-   
-to:
-   try
-   if IsWin(1)
-       % Need 64-Bit freeglut.dll:
-       cd([PsychtoolboxRoot 'PsychOpenGL/MOGL/core/x64']);
-@ -165,6 +177,9 @@ if IsWin
-       % Need 32-Bit freeglut.dll:
-       cd([PsychtoolboxRoot 'PsychOpenGL/MOGL/core']);
-   end
-   catch
-       disp('not changing directory to PsychOpenGL/MOGL/core/x64...');
-   end
-
-
-3.
+2.
 copy: C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\Psychtoolbox\Psychtoolbox\PsychOpenGL\MOGL\core\x64\freeglut.dll
 to: C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\Psychtoolbox\Psychtoolbox\PsychBasic\MatlabWindowsFilesR2007a
 add this freeglut.dll into compiler
 
-
-4.
+3.
 add:
 C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\Psychtoolbox\Psychtoolbox\PsychSound\portaudio_x64.dll
 C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\Psychtoolbox\Psychtoolbox\PsychSound\portaudio_x86.dll
 
-5.
+4.
 copy:
 C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\Psychtoolbox\Psychtoolbox\PsychContributed\x64\libusb-1.0.dll
 to:
