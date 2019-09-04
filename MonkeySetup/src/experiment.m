@@ -25,8 +25,9 @@ classdef experiment < handle
         intTrialMin = 1   % Inter trial duration [s] 
         intTrialMax = 1   % Inter trial duration [s] 
         
-        defaultPath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
-%         defaultPath = 'C:\Users\Sinapse\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
+        savingPath = ''
+        defaultSavingPath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
+%         defaultSavingPath = 'C:\Users\Sinapse\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
         defaultName = [date, '_RUN_', num2str(1),'.mat']
         
         squareHeight = 300;      % size of squares in pixels
@@ -63,7 +64,8 @@ classdef experiment < handle
         dataTemp = 0
         inputBufferSize = 40960
 
-        resourcePath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
+        resourcePath = 'resources'
+        defaultResourcePath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
 %         resourcePath = 'C:\Users\Sinapse\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
     end
     
@@ -83,6 +85,9 @@ classdef experiment < handle
         
         %% Control experiment
         function results = startExperiment(obj)
+            checkDeaultPath(obj);
+            checkResourcesPath(obj);
+            
             if strcmp(obj.expType, 'EMG+Dyno') || strcmp(obj.expType, 'Dyno')
                 % DAQ only for dynamometer
 %                 switch obj.inputMethod
@@ -189,7 +194,7 @@ classdef experiment < handle
                         
                         % only continue when no force is applied
                         if strcmp(obj.expType, 'Dyno')
-                            readData(obj);
+                            readForceData(obj);
                             tempData(k, i) = obj.dataTemp;
                         elseif strcmp(obj.expType, 'EMG') || strcmp(obj.expType, 'EMG+Dyno')
                             audioRec = PsychPortAudio('GetAudioData', a.pinhandle);
@@ -232,7 +237,7 @@ classdef experiment < handle
                         for i = 1:q.frames.response
                             % still record dynanometer data
                             if strcmp(obj.expType, 'EMG+Dyno')
-                                readData(obj);
+                                readForceData(obj);
                                 data(k, i) = obj.dataTemp;
                                 scaleData(i) = (1 - ((data(k, i) / obj.maxForceValue) * obj.sensorSensitivity)) * p.screenYpixels;
                             end
@@ -303,7 +308,7 @@ classdef experiment < handle
                         obj.maxForceValue = 100;
                         clearBuffer(obj);
                         for i = 1:q.frames.response
-                            readData(obj);
+                            readForceData(obj);
                             data(k, i) = obj.dataTemp;
                             disp(data(k, i));
                             if strcmp(obj.t.Status, 'open')
@@ -445,7 +450,7 @@ classdef experiment < handle
         end
         
         function save(obj)
-            fName = fullfile(obj.defaultPath, obj.defaultName);
+            fName = fullfile(obj.savingPath, obj.defaultName);
             save(fName, 'obj')
             
             obj.saved = true;
@@ -576,6 +581,7 @@ classdef experiment < handle
             % setup images
             imageLocationCross = fullfile(obj.resourcePath, 'cross.png');
             crossImg = imread(imageLocationCross);
+            
             p.crossTexture = Screen('MakeTexture', w, crossImg);
             
             imageLocationCheck = fullfile(obj.resourcePath, 'checkMark.jpg');
@@ -861,7 +867,7 @@ classdef experiment < handle
             delete(obj.session)
         end
         
-        function readData(obj)
+        function readForceData(obj)
             switch obj.inputMethod
                 case 'sdaq'
                     obj.dataTemp = obj.dynamometer.scale(obj.s.inputSingleScan);
@@ -886,6 +892,27 @@ classdef experiment < handle
         function clearBuffer(obj)
             if strcmp(obj.inputMethod, 'tcpip')
                 flushinput(obj.tForce);
+            end
+        end
+        
+        function checkDeaultPath(obj)
+            if exist(obj.defaultSavingPath, 'dir')
+                obj.savingPath = obj.defaultSavingPath;
+                return
+            else
+                obj.savingPath = '';  % current directory
+            end
+        end
+        
+        function checkResourcesPath(obj)
+            if exist(obj.resourcePath, 'dir')
+                return
+            elseif exist(obj.defaultResourcePath, 'dir')
+                obj.resourcePath = obj.defaultResourcePath;
+                return
+            else
+                popMsg(sprintf('Couldn''t find resources in %s and current directory...',obj.defaultResourcePath));
+                error('Couldn''t find resources in current directory...');
             end
         end
     end
