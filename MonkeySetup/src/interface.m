@@ -22,7 +22,7 @@ function varargout = interface(varargin)
 
 % Edit the above text to modify the response to help interface
 
-% Last Modified by GUIDE v2.5 17-Apr-2018 12:59:47
+% Last Modified by GUIDE v2.5 03-Sep-2019 17:20:10
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -525,3 +525,10 @@ end
 
 set(handles.editITImin, 'String', num2str(exp.intTrialMin))
 set(handles.editITImax, 'String', num2str(exp.intTrialMax))
+
+
+% --- Executes on button press in buttonStartTcpip.
+function buttonStartTcpip_Callback(hObject, eventdata, handles)
+% hObject    handle to buttonStartTcpip (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
