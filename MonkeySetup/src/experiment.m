@@ -25,13 +25,16 @@ classdef experiment < handle
         intTrialMin = 1   % Inter trial duration [s] 
         intTrialMax = 1   % Inter trial duration [s] 
         
-        defaultPath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
-%         defaultPath = 'C:\Users\Sinapse\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
+        savingPath = ''
+        defaultSavingPath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
+%         defaultSavingPath = 'C:\Users\Sinapse\Documents\GitHub\MonkeyExperiment\MonkeySetup\src'
         defaultName = [date, '_RUN_', num2str(1),'.mat']
         
         squareHeight = 300;      % size of squares in pixels
         
         expType = 'Dyno'; % type of experiment to be executed, options are: 'EMG', 'Dyno', 'EMG+Dyno', 'Implant'
+        
+        inputMethod
     end
     %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -54,10 +57,15 @@ classdef experiment < handle
         sequence       % Sequence for the trials
         audio
         dynamometer
+        s              % sdaq
         t              % Socket to Sylph GUI
         tRpi           % Socket to Rpi
+        tForce
+        dataTemp = 0
+        inputBufferSize = 40960
 
-        resourcePath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
+        resourcePath = 'resources'
+        defaultResourcePath = 'C:\Users\lsitsai\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
 %         resourcePath = 'C:\Users\Sinapse\Documents\GitHub\MonkeyExperiment\MonkeySetup\src\resources';
     end
     
@@ -77,24 +85,49 @@ classdef experiment < handle
         
         %% Control experiment
         function results = startExperiment(obj)
+            checkDeaultPath(obj);
+            checkResourcesPath(obj);
+            
             if strcmp(obj.expType, 'EMG+Dyno') || strcmp(obj.expType, 'Dyno')
                 % DAQ only for dynamometer
-                s = obj.createDAQSession;
+%                 switch obj.inputMethod
+                try
+%                     case 'sdaq'
+                        obj.createDAQSession;  % read from NI-DAQ
+                        obj.inputMethod = 'sdaq';
+                        popMsg('Found hand dyno...');
+%                     case 'tcpip'
+                catch
+%                         obj.tForce = tcpip('127.0.0.1', 6666, 'NetworkRole', 'server', 'InputBufferSize', obj.inputBufferSize);
+%                         disp('Waiting for cliet to connect to 127.0.0.1::6666...')
+                        popMsg('... Trying tcpip...');
+                        try
+                            obj.tForce = tcpip('127.0.0.1', 6666, 'Timeout', 0);
+                            fopen(obj.tForce);
+                            popMsg(sprintf('Couldn''t find hand dyno...\nConnected to force sensor socket...'))
+                        catch
+                            popMsg('Failed to connect to force sensor...');
+                            error('Failed to connect to force sensor...')
+                        end
+                        obj.inputMethod = 'tcpip';
+                end
             end
             [w, p] = obj.createOnScreen;
             q = obj.createSequence;
             a = obj.createAudio;
             
-            obj.t = tcpip('127.0.0.1', 45454, 'NetworkRole', 'client');
             try
+                obj.t = tcpip('127.0.0.1', 45454);
                 fopen(obj.t);
+                disp('Successfully connected to GUI...');
             catch
                 disp('Unable to connect to GUI...');
             end
             
-            obj.tRpi = tcpip('192.168.4.3', 5555, 'NetworkRole', 'client');
             try
+                obj.tRpi = tcpip('192.168.4.3', 5555);
                 fopen(obj.tRpi);
+                disp('Successfully connected to Rpi...')
             catch
                 disp('Unable to connect to Rpi...');
             end
@@ -155,12 +188,14 @@ classdef experiment < handle
                     % only continue when no force is applied
                     tempData(k, i) = 1;
                     
+                    clearBuffer(obj);
                     while tempData(k, i) > 0.1
                         obj.sendZeroToSocket;
                         
                         % only continue when no force is applied
                         if strcmp(obj.expType, 'Dyno')
-                            tempData(k, i) = obj.dynamometer.scale(s.inputSingleScan);
+                            readForceData(obj);
+                            tempData(k, i) = obj.dataTemp;
                         elseif strcmp(obj.expType, 'EMG') || strcmp(obj.expType, 'EMG+Dyno')
                             audioRec = PsychPortAudio('GetAudioData', a.pinhandle);
                             tempData(k, i) = mean(abs(audioRec(1, :)));
@@ -181,7 +216,9 @@ classdef experiment < handle
                 end
                 
                 obj.playSound('start');
-                obj.session.outputSingleScan(3.3);
+                if strcmp(obj.inputMethod, 'sdaq')
+                    obj.session.outputSingleScan(3.3);
+                end
 
                 % response time
                 switch obj.expType
@@ -196,10 +233,12 @@ classdef experiment < handle
                             
                         tempOri = [];
 
+                        clearBuffer(obj);
                         for i = 1:q.frames.response
                             % still record dynanometer data
                             if strcmp(obj.expType, 'EMG+Dyno')
-                                data(k, i) = obj.dynamometer.scale(s.inputSingleScan);
+                                readForceData(obj);
+                                data(k, i) = obj.dataTemp;
                                 scaleData(i) = (1 - ((data(k, i) / obj.maxForceValue) * obj.sensorSensitivity)) * p.screenYpixels;
                             end
                             
@@ -267,9 +306,10 @@ classdef experiment < handle
 
                     case 'Dyno'
                         obj.maxForceValue = 100;
+                        clearBuffer(obj);
                         for i = 1:q.frames.response
-                            
-                            data(k, i) = obj.dynamometer.scale(s.inputSingleScan);
+                            readForceData(obj);
+                            data(k, i) = obj.dataTemp;
                             disp(data(k, i));
                             if strcmp(obj.t.Status, 'open')
                                 fwrite(obj.t, data(k, i), 'double');
@@ -333,7 +373,9 @@ classdef experiment < handle
                     case 'Implant'
                         
                 end
-                obj.session.outputSingleScan(0);
+                if strcmp(obj.inputMethod, 'sdaq')
+                    obj.session.outputSingleScan(0);
+                end
                 if trialSucc(k)
                     task = 'success';
                 else
@@ -408,7 +450,7 @@ classdef experiment < handle
         end
         
         function save(obj)
-            fName = fullfile(obj.defaultPath, obj.defaultName);
+            fName = fullfile(obj.savingPath, obj.defaultName);
             save(fName, 'obj')
             
             obj.saved = true;
@@ -539,6 +581,7 @@ classdef experiment < handle
             % setup images
             imageLocationCross = fullfile(obj.resourcePath, 'cross.png');
             crossImg = imread(imageLocationCross);
+            
             p.crossTexture = Screen('MakeTexture', w, crossImg);
             
             imageLocationCheck = fullfile(obj.resourcePath, 'checkMark.jpg');
@@ -602,23 +645,23 @@ classdef experiment < handle
             obj.audio = a;
         end
         
-        function s = createDAQSession(obj)
+        function createDAQSession(obj)
             endTime = 0.002;
             fs = 1250;
 
-            s = sdaq.createSession();
-            s.Rate = fs;
-            s.DurationInSeconds = endTime;
+            obj.s = sdaq.createSession();
+            obj.s.Rate = fs;
+            obj.s.DurationInSeconds = endTime;
             
             dyno.scale = sdaq.getScaleFun(sdaq.Sensors.HandDynamometer);
-            sdaq.addSensor(s,1,sdaq.Sensors.HandDynamometer);
+            sdaq.addSensor(obj.s,1,sdaq.Sensors.HandDynamometer);
             
-            dyno.lh = addlistener(s,'DataAvailable', @(src,event)appendADC(channel, event.TimeStamps, event.Data));
-            s.NotifyWhenDataAvailableExceeds = 1;
-            sdaq.addAnalogOutput(s);
-            s.outputSingleScan(0);
+            dyno.lh = addlistener(obj.s,'DataAvailable', @(src,event)appendADC(channel, event.TimeStamps, event.Data));
+            obj.s.NotifyWhenDataAvailableExceeds = 1;
+            sdaq.addAnalogOutput(obj.s);
+            obj.s.outputSingleScan(0);
             obj.dynamometer = dyno;
-            obj.session = s;
+            obj.session = obj.s;
         end
         
         function q = createSequence(obj)
@@ -807,6 +850,9 @@ classdef experiment < handle
                 fwrite(obj.tRpi, 99999, 'single');
                 fclose(obj.tRpi);
             end
+            if strcmp(obj.inputMethod, 'tcpip') && strcmp(obj.tForce.Status, 'open')
+                fclose(obj.tForce);
+            end
             Priority(0);
             sca;
             obj.playSound('stop')
@@ -819,6 +865,55 @@ classdef experiment < handle
             
             disp('*** Experiment terminated ***');
             delete(obj.session)
+        end
+        
+        function readForceData(obj)
+            switch obj.inputMethod
+                case 'sdaq'
+                    obj.dataTemp = obj.dynamometer.scale(obj.s.inputSingleScan);
+                case 'tcpip'
+%                     while true
+%                         if obj.tForce.BytesAvailable ~= 0 && mod(obj.tForce.BytesAvailable,8) == 0
+%                             disp(obj.tForce.BytesAvailable)
+                            bufferSize = 1;
+%                             bufferSize = obj.tForce.BytesAvailable
+                            data = fread(obj.tForce, bufferSize, 'double');
+                            if ~isempty(data)
+                                obj.dataTemp = data;
+                            end
+%                             obj.dataTemp = data(end);
+                            flushinput(obj.tForce);
+%                             return
+%                         end
+%                     end
+            end
+        end
+        
+        function clearBuffer(obj)
+            if strcmp(obj.inputMethod, 'tcpip')
+                flushinput(obj.tForce);
+            end
+        end
+        
+        function checkDeaultPath(obj)
+            if exist(obj.defaultSavingPath, 'dir')
+                obj.savingPath = obj.defaultSavingPath;
+                return
+            else
+                obj.savingPath = '';  % current directory
+            end
+        end
+        
+        function checkResourcesPath(obj)
+            if exist(obj.resourcePath, 'dir')
+                return
+            elseif exist(obj.defaultResourcePath, 'dir')
+                obj.resourcePath = obj.defaultResourcePath;
+                return
+            else
+                popMsg(sprintf('Couldn''t find resources in %s and current directory...',obj.defaultResourcePath));
+                error('Couldn''t find resources in current directory...');
+            end
         end
     end
 end
